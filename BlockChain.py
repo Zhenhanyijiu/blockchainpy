@@ -77,43 +77,36 @@ class Blockchain(object):
     @property
     def last_block(self):
         return self.chain[-1]
-
+	
     def proof_of_work(self, header_block,difficulty_bits):
         """
-        简单的工作量证明:
+        工作量证明POW:
          - 寻求一个proof(32bit)使得sha256(header_block+proof)小于一个目标值
          - 参数difficulty_bits为难度值，值越大，求解难度越大
-         -
-        :param : header_block: <str>
-        :param : difficulty_bits:<int>
+        :param : header_block: <str> 包含block['index'],block['timestamp'],block['previous_hash']
+        :param : difficulty_bits:<int> 1~255之间
         :return: <int>
         """
-
         proof = 0
-        # 定义一个死循环，直到valid_proof验证通过
+        # 定义一个循环，直到valid_proof验证通过，并返回当前的proof
         while self.valid_proof(header_block, proof,difficulty_bits) is False:
             proof += 1
-
         return proof
 
+	#静态方法，可以用类名直接调用
     @staticmethod
     def valid_proof(header_block, proof,difficulty_bits):
         """
+		通过穷举，找到满足目标条件的工作量证明
         验证证明: 验证hash结果小于目标值 2**（256-difficulty_bits）
         :param header_block: <str> 区块头
-        :param proof: <int> 当前证明
-        :return: <bool> 
+        :param proof: <int> 当前待验证的证明
+        :return: <bool> 满足目标条件返回true
         """
-
         target_int = 2 ** (256-difficulty_bits)
         input = header_block+str(proof)
         result = hashlib.sha256(input.encode()).hexdigest()
         return int(result,16)<target_int
-        # guess = f'{last_proof}{proof}'.encode()
-        # guess_hash = hashlib.sha256(guess).hexdigest()
-        # return guess_hash[:3] == "abc"
-
-
 
 #实例化一个Flask节点
 app = Flask(__name__)
@@ -131,21 +124,17 @@ def mine():
     last_block = blockchain.last_block
     #构造区块头header_block
     header_block =''
-    #取出索引号
+    #取出索引号并加1，作为新区块的index，接连到区块头
     header_block += str(last_block['index']+1)
-    #时间戳：记录创建区块的时间
+    #时间戳：记录创建区块的时间，接连到区块头[时间有些粗略，有待改进]
     create_time = time()
     header_block += str(create_time)
-    #前一个区块的hash值
+    #取出前一个区块的hash值，接连到区块头
     header_block +=str(last_block['previous_hash'])
-
-    #取出最后一个block的proof工作量证明
-    #last_proof = last_block['proof']
-     # 运行工作量的证明和验证算法，得到proof。
+    #运行工作量证明和验证算法，得到proof。
     #设置难度值
     difficulty_bits = 20
     proof = blockchain.proof_of_work(header_block,difficulty_bits)
-
     # 给工作量证明的节点提供奖励.
     # 发送者为 "0" 表明是新挖出的币
     # 接收者是我们自己的节点，即上面生成的node_identifier。实际中这个值可以用用户的账号。
@@ -177,7 +166,6 @@ def new_transaction():
     required = ['sender', 'recipient', 'amount']
     if not all(k in values for k in required):
         return 'Missing values', 400
-
     # 使用blockchain的new_transaction方法创建新的交易
     index = blockchain.new_transaction(values['sender'], values['recipient'], values['amount'])
     #构建response信息
